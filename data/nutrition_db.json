@@ -1,0 +1,32 @@
+{
+  "rice": {
+    "calories": 205,
+    "protein": 4,
+    "carbs": 45,
+    "fat": 0.4
+  },
+  "chicken": {
+    "calories": 239,
+    "protein": 27,
+    "carbs": 0,
+    "fat": 14
+  },
+  "broccoli": {
+    "calories": 55,
+    "protein": 4,
+    "carbs": 11,
+    "fat": 0.6
+  },
+  "egg": {
+    "calories": 78,
+    "protein": 6,
+    "carbs": 0.6,
+    "fat": 5
+  },
+  "apple": {
+    "calories": 95,
+    "protein": 0.5,
+    "carbs": 25,
+    "fat": 0.3
+  }
+}
