@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+:root {
+    --green: #28C76F;
+    --dark: #1E293B;
+    --light: #F7FCF9;
+    --text: #64748B;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    font-family: "Poppins", sans-serif;
+    background: #F7FCF9;
+    overflow-x: hidden;
+}
+
+* {
+    box-sizing: border-box;
+}

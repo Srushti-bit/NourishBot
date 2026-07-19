@@ -3,6 +3,11 @@ from .matcher import FoodMatcher
 from .selector import FoodSelector
 from .db_index import FoodDBIndex
 
+from .resolver import FoodResolver
+
+__all__ = [
+    "FoodResolver",
+]
 
 class FoodMatch:
     def __init__(self, input_name, canonical_name, confidence, method):

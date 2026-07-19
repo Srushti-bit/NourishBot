@@ -1,34 +1,78 @@
-from typing import List, Tuple, Optional
+from typing import Optional
+
+RAW_PENALTY = 3.0
+COOKED_BONUS = 2.0
+LONG_NAME_PENALTY = 2.0
+MAX_NAME_WORDS = 6
+DEFAULT_THRESHOLD = 85.0
 
 
 class FoodSelector:
-    def __init__(self, threshold: float = 85.0):
+    """
+    Selects the best food candidate from a list of fuzzy matches.
+
+    The selector applies domain-specific scoring rules to improve
+    match quality after fuzzy matching.
+    """
+
+    def __init__(self, threshold: float = DEFAULT_THRESHOLD):
         self.threshold = threshold
 
-    def select_best(self, candidates: List[Tuple[str, float]]) -> Optional[Tuple[str, float]]:
+    def _adjust_score(self, food_name: str, score: float) -> float:
+        """
+        Apply domain-specific score adjustments.
+
+        Args:
+            food_name: Candidate food name.
+            score: Original fuzzy similarity score.
+
+        Returns:
+            Adjusted similarity score.
+        """
+        adjusted_score = score
+        tokens = food_name.lower().split()
+
+        # Prefer cooked foods over raw foods.
+        if "raw" in tokens:
+            adjusted_score -= RAW_PENALTY
+
+        if "cooked" in tokens:
+            adjusted_score += COOKED_BONUS
+
+        # Penalize unusually long food names.
+        if len(tokens) > MAX_NAME_WORDS:
+            adjusted_score -= LONG_NAME_PENALTY
+
+        return adjusted_score
+
+    def select_best(
+        self,
+        candidates: list[tuple[str, float]]
+    ) -> Optional[tuple[str, float]]:
+        """
+        Select the highest-ranked food candidate.
+
+        Args:
+            candidates: List of (food_name, similarity_score).
+
+        Returns:
+            Best candidate after score adjustment,
+            or None if no candidate passes the threshold.
+        """
         if not candidates:
             return None
 
-        best_name, best_score = candidates[0]
+        best_candidate = None
+        highest_score = float("-inf")
 
-        name_lower = best_name.lower()
+        for food_name, score in candidates:
+            adjusted_score = self._adjust_score(food_name, score)
 
-        # -----------------------------
-        # DOMAIN BIAS: cooked is preferred over raw
-        # -----------------------------
-        if "raw" in name_lower:
-            best_score -= 3.0
+            if adjusted_score > highest_score:
+                highest_score = adjusted_score
+                best_candidate = (food_name, adjusted_score)
 
-        if "cooked" in name_lower:
-            best_score += 2.0
-
-        # -----------------------------
-        # EXTRA SAFETY: avoid noisy long entries
-        # -----------------------------
-        if len(best_name.split()) > 6:
-            best_score -= 2.0
-
-        if best_score < self.threshold:
+        if highest_score < self.threshold:
             return None
 
-        return best_name, best_score
+        return best_candidate

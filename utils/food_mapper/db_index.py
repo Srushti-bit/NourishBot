@@ -1,67 +1,112 @@
 import sqlite3
-from typing import List, Dict
+from typing import Optional
 
 
 class FoodDBIndex:
+    """
+    In-memory index for fast food lookups.
+
+    Loads the food database once and provides efficient
+    exact-name lookups and food name retrieval.
+    """
+
     def __init__(self, db_path: str):
+        """
+        Initialize the food database index.
+
+        Args:
+            db_path: Path to the SQLite database.
+        """
         self.db_path = db_path
-        self._foods: List[Dict] = []
-        self._name_to_row: Dict[str, Dict] = {}
+        self._foods: list[dict] = []
+        self._name_to_row: dict[str, dict] = {}
 
-    def load(self):
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+    def load(self) -> None:
+        """
+        Load all food records into memory.
+        """
 
-        cursor.execute("SELECT * FROM foods")
-        rows = cursor.fetchall()
+        self._foods.clear()
+        self._name_to_row.clear()
 
-        col_names = [desc[0] for desc in cursor.description]
-        conn.close()
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
 
-        for r in rows:
-            row = dict(zip(col_names, r))
+            cursor.execute("SELECT * FROM foods")
+            rows = cursor.fetchall()
+
+            column_names = [column[0] for column in cursor.description]
+
+        for row_values in rows:
+            row = dict(zip(column_names, row_values))
+
             self._foods.append(row)
 
-            name = (
+            food_name = (
                 row.get("normalized_name")
                 or row.get("food_name")
                 or row.get("name")
             )
 
-            if name:
-                self._name_to_row[name.lower()] = row
+            if food_name:
+                self._name_to_row[food_name.lower()] = row
 
-    # -----------------------------
-    # FIXED METHOD (correct indentation)
-    # -----------------------------
-    def get_by_exact_name(self, name: str):
+    def get_by_exact_name(self, name: str) -> Optional[dict]:
+        """
+        Retrieve a food by its normalized name.
+
+        Args:
+            name: Food name to search.
+
+        Returns:
+            Matching database row or None.
+        """
+
+        if not name:
+            return None
+
         row = self._name_to_row.get(name.lower())
 
-        if row:
-            row["normalized_name"] = self.normalize_name_preference(
-                row.get("normalized_name", "")
-            )
-            return row
+        if row is None:
+            return None
 
-        return None
+        # Return a copy to avoid modifying cached data.
+        result = row.copy()
 
-    def all_food_names(self) -> List[str]:
+        result["normalized_name"] = self.normalize_name_preference(
+            result.get("normalized_name", "")
+        )
+
+        return result
+
+    def all_food_names(self) -> list[str]:
+        """
+        Return all searchable food names.
+        """
+
         return [
-            r.get("normalized_name")
-            or r.get("food_name")
-            or r.get("name")
-            for r in self._foods
-            if r
+            row.get("normalized_name")
+            or row.get("food_name")
+            or row.get("name")
+            for row in self._foods
+            if row
         ]
 
-    # -----------------------------
-    # Canonical preference rule
-    # -----------------------------
-    def normalize_name_preference(self, name: str) -> str:
+    @staticmethod
+    def normalize_name_preference(name: str) -> str:
+        """
+        Apply project-specific canonical naming rules.
+
+        Example:
+            'white rice raw' -> 'white rice cooked'
+        """
+
+        if not name:
+            return ""
+
         name_lower = name.lower()
 
-        # prefer cooked over raw
-        if "white rice raw" in name_lower:
+        if name_lower == "white rice raw":
             return "white rice cooked"
 
         return name

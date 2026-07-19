@@ -1,42 +1,39 @@
 import sqlite3
-import sys
 
-DB_PATH = "database/nutrition.db"
+conn = sqlite3.connect("database/nutrition.db")
+cursor = conn.cursor()
 
+foods = [
+    "rice",
+    "white rice",
+    "chicken",
+    "egg",
+    "banana",
+    "broccoli",
+    "apple",
+    "milk",
+    "pizza",
+]
 
-def search_food(query):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+for food in foods:
+    print(f"\n========== {food.upper()} ==========")
 
-    cursor.execute("""
-        SELECT normalized_name
+    cursor.execute(
+        """
+        SELECT name, normalized_name
         FROM foods
-        WHERE LOWER(normalized_name) LIKE ?
-        ORDER BY normalized_name
-        LIMIT 20
-    """, (f"%{query.lower()}%",))
+        WHERE normalized_name LIKE ?
+        LIMIT 10
+        """,
+        (f"%{food}%",),
+    )
 
     rows = cursor.fetchall()
 
-    conn.close()
+    if rows:
+        for row in rows:
+            print(row)
+    else:
+        print("No matches found.")
 
-    if not rows:
-        print(f"\n❌ No foods found for '{query}'")
-        return
-
-    print(f"\n========== Results for '{query}' ==========\n")
-
-    for row in rows:
-        print(row[0])
-
-    print(f"\nTotal Matches: {len(rows)}")
-
-
-if __name__ == "__main__":
-
-    if len(sys.argv) != 2:
-        print("Usage:")
-        print("python tools/inspect_database.py <food_name>")
-        sys.exit()
-
-    search_food(sys.argv[1])
+conn.close()

@@ -1,43 +1,61 @@
-# food_mapper/validator.py
+"""
+Validation utilities for Food Resolver aliases.
 
-from food_mapper.aliases import UNRESOLVED, GENERIC_DEFAULTS
+Ensures that all alias mappings are valid before the resolver is used.
+"""
+
+from .aliases import GENERIC_DEFAULTS, UNRESOLVED
+from .db_index import FoodDBIndex
 
 
-def validate_aliases(db_index):
+def validate_aliases(db_index: FoodDBIndex) -> None:
     """
-    Validates alias mappings against the loaded database index.
+    Validate alias mappings against the loaded database index.
 
-    Rules:
-    - UNRESOLVED is allowed
-    - None is NOT allowed (accidental bug)
-    - All string mappings must exist in DB normalized_name set
+    Validation rules:
+    - UNRESOLVED is allowed.
+    - None is not allowed (use UNRESOLVED instead).
+    - Every string alias must exist in the database.
+
+    Args:
+        db_index: Loaded food database index.
+
+    Raises:
+        RuntimeError:
+            If one or more invalid alias mappings are found.
     """
 
-    errors = []
+    errors: list[str] = []
 
-    # build DB lookup set once
+    # Build a set for fast O(1) lookups.
     db_names = {
         name.lower()
         for name in db_index.all_food_names()
-        if name is not None
+        if name
     }
 
-    for key, canonical in GENERIC_DEFAULTS.items():
+    for alias, canonical_name in GENERIC_DEFAULTS.items():
 
-        # 1. accidental None catch
-        if canonical is None:
-            errors.append(f"[ALIASES] '{key}' mapped to None (use UNRESOLVED instead)")
-            continue
-
-        # 2. explicitly unresolved is fine
-        if canonical is UNRESOLVED:
-            continue
-
-        # 3. must exist in DB
-        if canonical.lower() not in db_names:
+        # None indicates an accidental programming error.
+        if canonical_name is None:
             errors.append(
-                f"[ALIASES] '{key}' → '{canonical}' not found in database"
+                f"[ALIASES] '{alias}' maps to None. "
+                "Use UNRESOLVED instead."
+            )
+            continue
+
+        # Explicitly unresolved aliases are allowed.
+        if canonical_name is UNRESOLVED:
+            continue
+
+        # Canonical food must exist in the database.
+        if canonical_name.lower() not in db_names:
+            errors.append(
+                f"[ALIASES] '{alias}' -> "
+                f"'{canonical_name}' does not exist in the database."
             )
 
     if errors:
-        raise RuntimeError("\n".join(errors))
+        raise RuntimeError(
+            "Alias validation failed:\n\n" + "\n".join(errors)
+        )

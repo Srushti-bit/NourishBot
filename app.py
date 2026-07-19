@@ -1,129 +1,160 @@
-import gradio as gr
+"""
+NourishBot Application.
 
-from agents.vision_agent import detect_food
+Provides a Gradio interface for:
+- Food image analysis
+- Nutrition reporting
+- Healthy recipe generation
+"""
+
+import gradio as gr
+from PIL import Image
+
 from agents.analysis_agent import analyze_meal
 from agents.recipe_agent import generate_recipe
+from agents.vision_agent import detect_food
+
+APP_TITLE = "🥗 NourishBot"
 
 
-def process_food(image, diet, workflow):
+def process_food(
+    image: Image.Image | None,
+    diet: str,
+    workflow: str,
+) -> str:
+    """
+    Process an uploaded food image.
+
+    Args:
+        image: Uploaded PIL image.
+        diet: Selected diet preference.
+        workflow: Analysis or Recipe.
+
+    Returns:
+        Formatted application response.
+    """
 
     if image is None:
-        return "Please upload a food image."
+        return "❌ Please upload a food image."
 
-    # Get vision results
-    vision_result = detect_food(image)
+    try:
+        vision_result = detect_food(image)
 
-    detected_foods = vision_result["foods"]
-    caption = vision_result["caption"]
+        caption = vision_result["caption"]
+        detected_foods = vision_result["foods"]
 
-    # If no foods were detected
-    if not detected_foods:
-        return f"""
-AI Caption:
-{caption}
+        if not detected_foods:
+            return (
+                "=============================\n"
+                "🤖 AI CAPTION\n"
+                "=============================\n\n"
+                f"{caption}\n\n"
+                "❌ No known food items were detected.\n\n"
+                "Try:\n"
+                "• A clearer image\n"
+                "• A closer view of the meal\n"
+                "• Better lighting"
+            )
 
-❌ No known food items were detected.
+        if workflow == "Analysis":
+            result = analyze_meal(detected_foods)
 
-Try uploading:
-• A clearer image
-• A closer view of the meal
-• Better lighting
-"""
+        elif workflow == "Recipe":
+            result = generate_recipe(
+                detected_foods,
+                diet,
+            )
 
-    if workflow == "Analysis":
+        else:
+            return "Invalid workflow selected."
 
-        report = analyze_meal(detected_foods)
-
-        return f"""
-=============================
-🤖 AI CAPTION
-=============================
-
-{caption}
-
-=============================
-🍽️ DETECTED FOODS
-=============================
-
-{", ".join(detected_foods)}
-
-{report}
-"""
-
-    elif workflow == "Recipe":
-
-        recipe = generate_recipe(
-            detected_foods,
-            diet
+        return (
+            "=============================\n"
+            "🤖 AI CAPTION\n"
+            "=============================\n\n"
+            f"{caption}\n\n"
+            "=============================\n"
+            "🍽️ DETECTED FOODS\n"
+            "=============================\n\n"
+            f"{', '.join(detected_foods)}\n\n"
+            f"{result}"
         )
 
-        return f"""
-=============================
-🤖 AI CAPTION
-=============================
-
-{caption}
-
-=============================
-🍽️ DETECTED FOODS
-=============================
-
-{", ".join(detected_foods)}
-
-{recipe}
-"""
-
-    return "Invalid workflow selected."
+    except Exception as exc:
+        return (
+            "An unexpected error occurred.\n\n"
+            f"{type(exc).__name__}: {exc}"
+        )
 
 
-with gr.Blocks(title="🥗 NourishBot") as app:
+def build_interface() -> gr.Blocks:
+    """
+    Build the Gradio interface.
+    """
 
-    gr.Markdown("# 🥗 NourishBot")
-    gr.Markdown(
-        "Upload a food image to receive AI-powered nutrition analysis or healthy recipe suggestions."
-    )
+    with gr.Blocks(title=APP_TITLE) as app:
 
-    image_input = gr.Image(
-        type="pil",
-        label="📷 Upload Food Image"
-    )
+        gr.Markdown(f"# {APP_TITLE}")
 
-    diet = gr.Dropdown(
-        choices=[
-            "None",
-            "Vegan",
-            "Vegetarian",
-            "Gluten-Free",
-            "Keto"
-        ],
-        value="None",
-        label="🥦 Diet Preference"
-    )
+        gr.Markdown(
+            "Upload a food image to receive AI-powered "
+            "nutrition analysis or healthy recipe suggestions."
+        )
 
-    workflow = gr.Radio(
-        choices=[
-            "Analysis",
-            "Recipe"
-        ],
-        value="Analysis",
-        label="⚙️ Workflow"
-    )
+        image_input = gr.Image(
+            type="pil",
+            label="📷 Upload Food Image",
+        )
 
-    output = gr.Textbox(
-        label="📄 Result",
-        lines=25
-    )
+        diet = gr.Dropdown(
+            choices=[
+                "None",
+                "Vegan",
+                "Vegetarian",
+                "Gluten-Free",
+                "Keto",
+            ],
+            value="None",
+            label="🥦 Diet Preference",
+        )
 
-    analyze_button = gr.Button("🚀 Analyze")
+        workflow = gr.Radio(
+            choices=[
+                "Analysis",
+                "Recipe",
+            ],
+            value="Analysis",
+            label="⚙️ Workflow",
+        )
 
-    analyze_button.click(
-        fn=process_food,
-        inputs=[
-            image_input,
-            diet,
-            workflow
-        ],
-        outputs=output
-    )
+        output = gr.Textbox(
+            label="📄 Result",
+            lines=25,
+        )
 
-app.launch()
+        analyze_button = gr.Button("🚀 Analyze")
+
+        analyze_button.click(
+            fn=process_food,
+            inputs=[
+                image_input,
+                diet,
+                workflow,
+            ],
+            outputs=output,
+        )
+
+    return app
+
+
+def main() -> None:
+    """
+    Application entry point.
+    """
+
+    app = build_interface()
+    app.launch()
+
+
+if __name__ == "__main__":
+    main()
